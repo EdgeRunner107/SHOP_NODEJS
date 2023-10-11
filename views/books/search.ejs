@@ -1,0 +1,188 @@
+<div class = "my-5">
+    <h1 class="text-center">도서검색 ●▅▇█▇▆▅▄▇  </h1>
+
+    <div class="row justify-content-end">
+        <form name="frm" class="col-md-4">
+            <div class="input-group">
+                <input name="query" class="form-control">
+                <button class="btn btn-primary">검색</button>
+            </div>
+        </form>
+    </div>
+
+    <div id="div_books"></div>
+    <div class="text-center">
+        <button id="prev" class="btn btn-primary">이전</button>
+        <span id="span_page">1/10</span>
+        <button id="next" class="btn btn-primary">다음</button>
+    </div>
+    <button id="fetchData">GPT 추천</button>
+    <p id="response"></p>
+
+</div>
+
+<!--도서검색템플릿-->
+<script id="temp_books" type="x-handlebars-template">
+    <table class="table table-striped">
+    {{#each documents}}
+        <tr>
+            <td><img src="{{isImage thumbnail}}" width="50"></td>
+            <td>{{title}}</td>
+            <td>{{fmtPrice price}}</td>
+        </tr>    
+    {{/each}}
+    </table>
+</script>
+
+<script>
+    //이미지유무 체크
+    Handlebars.registerHelper("isImage", function(image){
+        if(image){
+            return image;
+        }else{
+            return "http://via.placeholder.com/170x250";
+        }
+    })
+
+    Handlebars.registerHelper("fmtPrice",function(price){
+
+        return price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") + "원"
+    })
+
+
+</script>
+<script id="temp_gpt_books" type="x-handlebars-template">
+    <table class="table table-striped">
+    {{#each books}}
+        <tr>
+            <td>{{this}}</td>
+        </tr>    
+    {{/each}}
+    </table>
+</script>
+
+
+<script>
+    let searchQuery="node js";
+    let page = 1;
+    getBooks();
+
+    $(frm).on("submit", function(e){
+        e.preventDefault();
+        searchQuery=$(frm.query).val();
+        //alert(query);
+
+        if(searchQuery==""){
+
+            alert("검색어입력해");
+            $(frm.query).focus();
+        }else{
+            getBooks();
+        }
+
+
+
+    });
+
+
+    //다음버튼을 클릭한경우
+    $("#next").on("click", function(){
+        page++;
+        getBooks();
+    });
+
+    //이전버튼을 클릭한경우
+        $("#prev").on("click", function(){
+        page--;
+        getBooks();
+    });
+
+
+    function getBooks(){
+        $.ajax({
+            type:"get",
+            headers:{"Authorization":"KakaoAK d98342bfb3d10bd8a8d18f10982fe1c8"},
+            url:"https://dapi.kakao.com/v3/search/book?target=title",
+            data:{query:searchQuery, page:page, size:5},
+            success:function(data){
+                console.log(data);
+                const temp=Handlebars.compile($("#temp_books").html());
+                $("#div_books").html(temp(data));
+                const last=Math.ceil(data.meta.pageable_count/5);
+                $("#span_page").html(`${page}/${last}`);
+
+                if(page==1) $("#prev").attr("disabled", true);
+                else $("#prev").attr("disabled", false);
+
+                if(data.meta.is_end) $("#next").attr("disabled", true);
+                else $("#next").attr("disabled", false);
+            }
+        });
+    }   
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    document.getElementById('fetchData').addEventListener('click', async function() {
+        try {
+            const response = await fetch('https://api.openai.com/v1/engines/davinci/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer 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',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    prompt: `Make a list of five books about this keyword "${searchQuery}"?`,
+                    max_tokens: 1000
+                })
+            });
+    
+            const data = await response.json();
+            const allResponses = data.choices[0].text.trim().split('\n');
+    
+            // Handlebars 템플릿 적용
+            const gptTemp = Handlebars.compile($("#temp_gpt_books").html());
+            $("#response").html(gptTemp({books: allResponses}));
+    
+        } catch (error) {
+            console.error('Error:', error);
+            document.getElementById('response').textContent = 'Error occurred.';
+        }
+    });
+    
+
+
+
+
+    
+</script>
+
